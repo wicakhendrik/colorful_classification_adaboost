@@ -25,7 +25,7 @@ SECRET_KEY = '6b0%fw6zl0*ax@v^xy(2s8jv_6em!j609i3@gzh-wh8&u8z752'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['colorful-classification.herokuapp.com']
+ALLOWED_HOSTS = ['colorful-classificationapp.herokuapp.com']
 
 
 # Application definition
