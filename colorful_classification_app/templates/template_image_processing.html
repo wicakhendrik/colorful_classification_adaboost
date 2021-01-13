@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Image Processing</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+  </head>
+  <body>
+    <h1>Image Processing</h1>
+    <hr>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label for="input_img">Input Image</label>
+      <input type="file" name="input_img">
+
+      <button type="submit">Proses</button>
+    </form>
+
+    {% if output %}
+    <table class="tbl">
+      <tr>
+        <th>Image</th>
+        <th>Identifikasi</th>
+      </tr>
+
+      {% for file in output %}
+      <tr>
+        <td><img src="{{file.url_img}}" alt="{{file.url_img}}" height="30%"></td>
+        <td><p>{{ file.identifikasi }}</p></td>
+      </tr>
+      {% endfor%}
+    </table>
+    {% endif %}
+  </body>
+</html>
