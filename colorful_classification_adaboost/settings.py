@@ -20,12 +20,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '6b0%fw6zl0*ax@v^xy(2s8jv_6em!j609i3@gzh-wh8&u8z752'
+# Override via env var in production (see DEPLOY.md). The fallback is only for local dev.
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    '6b0%fw6zl0*ax@v^xy(2s8jv_6em!j609i3@gzh-wh8&u8z752',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['colorful-classificationapp.herokuapp.com']
+# Comma separated, e.g. DJANGO_ALLOWED_HOSTS=example.com,203.0.113.10
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS',
+        'localhost,127.0.0.1,[::1],colorful-classificationapp.herokuapp.com',
+    ).split(',')
+    if h.strip()
+]
+
+# Needed when serving behind HTTPS reverse proxy, e.g. https://example.com (Django >= 4) or example.com (Django 3.1)
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
+]
 
 
 # Application definition
@@ -118,8 +135,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-PROJECT_ROOT   =   os.path.join(os.path.abspath(__file__))
-STATIC_ROOT  =   os.path.join(PROJECT_ROOT, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
@@ -130,7 +146,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 #  Add configuration for static files storage using whitenoise
-STATICFILES_STORAGE = 'whitenoise.django.GzipManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 import dj_database_url 
 DATABASES['default'].update(dj_database_url.config(conn_max_age=500))

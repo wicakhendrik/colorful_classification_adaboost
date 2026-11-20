@@ -32,11 +32,15 @@ for i in range(T):
 def predict(fitur, a, weak_learn):
     # Mendapatkan hipotesis dari weak learn
     y_pred = np.array([wl.predict(fitur) for wl in weak_learn], dtype=int)
-    # Hasil Prediksi
-    return np.sign(np.dot(a, y_pred))[0]
+    # Skor AdaBoost mentah: sum(alpha_t * h_t(x))
+    raw = np.dot(a, y_pred)[0]
+    # Hasil Prediksi (+1 / -1 / 0)
+    return np.sign(raw), raw
 
 def get_fitur(image_path, number_of_colors):
     image = cv2.imread(os.path.join(settings.BASE_DIR, (image_path)))
+    if image is None:
+        raise ValueError('File bukan gambar yang valid')
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     modified_image = cv2.resize(image, (600, 400), interpolation = cv2.INTER_AREA)
     modified_image = modified_image.reshape(modified_image.shape[0]*modified_image.shape[1], 3)
@@ -50,33 +54,53 @@ def get_fitur(image_path, number_of_colors):
     fitur = np.zeros((20,1))
     for i in range(len(counts)):
         fitur[i] = counts[i]
-        
-    return fitur
+
+    # Palet warna dominan (untuk ditampilkan di UI), diurutkan dari yang terbanyak
+    total = float(sum(counts.values()))
+    palette = [
+        {
+            "hex": '#%02x%02x%02x' % tuple(int(round(c)) for c in clf.cluster_centers_[k]),
+            "percent": round(counts[k] / total * 100, 1),
+        }
+        for k in sorted(counts, key=counts.get, reverse=True)
+    ]
+
+    return fitur, palette
 
 def image_pro(request):
     if request.method == "POST":
-        filepath = request.FILES.get('input_img', False)
-        if filepath != False:
-            file_img = request.FILES['input_img']
+        file_img = request.FILES.get('input_img')
+        if file_img is None:
+            return render(request, 'template_image_processing.html',
+                          {"error": "Pilih sebuah gambar terlebih dahulu."})
 
-            fs = FileSystemStorage()
-            filename = fs.save(file_img.name, file_img)
+        fs = FileSystemStorage()
+        filename = fs.save(file_img.name, file_img)
+        fnameTest = os.path.join(settings.MEDIA_ROOT, filename)
 
-            fnameTest = os.path.join(settings.BASE_DIR, ('media/'+file_img.name))
+        try:
+            fitur, palette = get_fitur(fnameTest, 20)
+        except ValueError:
+            fs.delete(filename)
+            return render(request, 'template_image_processing.html',
+                          {"error": "File tersebut bukan gambar yang valid. Coba PNG atau JPG."})
 
-            fitur = get_fitur(fnameTest, 20).astype(int)
-            fitur = fitur.reshape((fitur.shape[0],))
-            pr = predict([fitur], a, wl)
+        fitur = fitur.astype(int).reshape((fitur.shape[0],))
+        pr, raw = predict([fitur], a, wl)
+        score = float(raw / a.sum())   # -1 (sangat tidak colorful) ... +1 (sangat colorful)
 
-            context = {
-                "output" : [
-                    {
-                        "url_img" : "/media/"+file_img.name,
-                        "identifikasi" : 'Colorful' if pr > 0 else 'Nocolorful',
-                    }
-                ]
+        context = {
+            "result": {
+                "url_img": settings.MEDIA_URL + filename,
+                "filename": file_img.name,
+                "is_colorful": bool(pr > 0),
+                "label": 'Colorful' if pr > 0 else 'Nocolorful',
+                "score": round(score, 2),
+                "meter": round((score + 1) / 2 * 100),   # 0..100 untuk penanda di UI
+                "palette": palette,
+                "top_palette": palette[:6],
             }
-
-            return render(request, 'template_image_processing.html', context)
+        }
+        return render(request, 'template_image_processing.html', context)
 
     return render(request, 'template_image_processing.html')
