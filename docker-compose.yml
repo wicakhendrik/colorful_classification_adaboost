@@ -1,0 +1,18 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      # Local default: http://localhost:8000
+      # VPS behind a reverse proxy: set APP_BIND=127.0.0.1 in .env
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8000}:8000"
+    environment:
+      DJANGO_DEBUG: "${DJANGO_DEBUG:-False}"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-change-me-in-production}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
+    volumes:
+      - media:/app/media
+
+volumes:
+  media:
